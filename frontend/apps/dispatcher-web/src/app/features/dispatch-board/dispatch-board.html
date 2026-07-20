@@ -1,0 +1,79 @@
+<div class="board">
+  <aside class="panel">
+    <h2>Lệnh Điều Xe</h2>
+    <form (ngSubmit)="submitDispatch()">
+      <input placeholder="Số Điện Thoại" [(ngModel)]="callerPhone" name="callerPhone" />
+      <input placeholder="Họ Tên" [(ngModel)]="callerName" name="callerName" />
+      <input placeholder="Địa Chỉ Đón" [(ngModel)]="pickupAddress" name="pickupAddress" />
+      <div class="row">
+        <input placeholder="Lat đón" [(ngModel)]="pickupLat" name="pickupLat" />
+        <input placeholder="Lng đón" [(ngModel)]="pickupLng" name="pickupLng" />
+      </div>
+      <input placeholder="Địa Chỉ Trả" [(ngModel)]="dropoffAddress" name="dropoffAddress" />
+      <div class="row">
+        <input placeholder="Lat trả" [(ngModel)]="dropoffLat" name="dropoffLat" />
+        <input placeholder="Lng trả" [(ngModel)]="dropoffLng" name="dropoffLng" />
+      </div>
+      <button type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Đang gửi...' : 'Lệnh Điều Xe (F4)' }}
+      </button>
+      @if (formError()) {
+        <p class="error">{{ formError() }}</p>
+      }
+    </form>
+
+    <h3>Cuốc đang chờ ({{ pendingTrips().length }})</h3>
+    <p class="hint">Chọn 1 dòng rồi bấm vào xe trên bản đồ để gán tay.</p>
+    <table>
+      <thead>
+        <tr><th></th><th>SĐT</th><th>Địa chỉ</th><th>Trạng thái</th></tr>
+      </thead>
+      <tbody>
+        @for (t of pendingTrips(); track t.id) {
+          <tr [class.selected]="selectedTripId() === t.id" (click)="selectTripForAssign(t.id)">
+            <td><input type="radio" [checked]="selectedTripId() === t.id" /></td>
+            <td>{{ t.callerPhone ?? t.customerId }}</td>
+            <td>{{ t.pickupAddress }}</td>
+            <td>{{ statusLabel(t.status) }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <h3>Tất cả cuốc gần đây</h3>
+    <table>
+      <thead>
+        <tr><th>SĐT</th><th>Địa chỉ</th><th>Trạng thái</th><th>Giá</th></tr>
+      </thead>
+      <tbody>
+        @for (t of trips(); track t.id) {
+          <tr>
+            <td>{{ t.callerPhone ?? t.customerId }}</td>
+            <td>{{ t.pickupAddress }}</td>
+            <td>{{ statusLabel(t.status) }}</td>
+            <td>{{ t.price ?? '-' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </aside>
+
+  <main class="map-wrap">
+    @if (mapReady()) {
+      <google-map [center]="mapCenter" [zoom]="mapZoom" [options]="mapOptions" height="100%" width="100%">
+        @for (m of markers(); track m.driver.id) {
+          <map-marker
+            [position]="m.position"
+            [title]="m.driver.fullName + ' - ' + m.driver.phone"
+            [options]="{ opacity: m.shiftStatus === 'ON' ? 1 : 0.4 }"
+            (mapClick)="assignDriver(m.driver.id)"
+          ></map-marker>
+        }
+      </google-map>
+    } @else {
+      <div class="map-placeholder">
+        Chưa tải được bản đồ — kiểm tra GOOGLE_MAPS_API_KEY trong core/api.config.ts
+      </div>
+    }
+  </main>
+</div>

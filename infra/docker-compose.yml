@@ -1,0 +1,234 @@
+networks:
+  taxi-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: taxi-postgres
+    environment:
+      POSTGRES_USER: taxi
+      POSTGRES_PASSWORD: taxi
+      POSTGRES_DB: postgres
+    ports:
+      - "5433:5432"   # host 5433 vì máy dev đã có Postgres khác chiếm 5432; trong docker-network vẫn là postgres:5432
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
+    networks:
+      - taxi-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taxi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: taxi-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - taxi-net
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: taxi-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - taxi-net
+
+  discovery-server:
+    build:
+      context: ../backend
+      dockerfile: discovery-server/Dockerfile
+    container_name: taxi-discovery-server
+    ports:
+      - "8761:8761"
+    networks:
+      - taxi-net
+
+  config-server:
+    build:
+      context: ../backend
+      dockerfile: config-server/Dockerfile
+    container_name: taxi-config-server
+    depends_on:
+      - discovery-server
+    environment:
+      EUREKA_URI: http://discovery-server:8761/eureka
+    volumes:
+      - ./config-repo:/config-repo
+    ports:
+      - "8888:8888"
+    networks:
+      - taxi-net
+
+  api-gateway:
+    build:
+      context: ../backend
+      dockerfile: api-gateway/Dockerfile
+    container_name: taxi-api-gateway
+    depends_on:
+      - discovery-server
+      - config-server
+    environment:
+      EUREKA_URI: http://discovery-server:8761/eureka
+      CONFIG_SERVER_URI: http://config-server:8888
+      JWT_SECRET: ${JWT_SECRET:-dev-only-shared-secret-please-change-32bytes}
+    ports:
+      - "8080:8080"
+    networks:
+      - taxi-net
+
+  auth-service:
+    build:
+      context: ../backend
+      dockerfile: auth-service/Dockerfile
+    container_name: taxi-auth-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      discovery-server:
+        condition: service_started
+    environment:
+      EUREKA_URI: http://discovery-server:8761/eureka
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/auth_db
+      SPRING_DATASOURCE_USERNAME: taxi
+      SPRING_DATASOURCE_PASSWORD: taxi
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      JWT_SECRET: ${JWT_SECRET:-dev-only-shared-secret-please-change-32bytes}
+    ports:
+      - "8081:8081"
+    networks:
+      - taxi-net
+
+  driver-service:
+    build:
+      context: ../backend
+      dockerfile: driver-service/Dockerfile
+    container_name: taxi-driver-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      discovery-server:
+        condition: service_started
+    environment:
+      EUREKA_URI: http://discovery-server:8761/eureka
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/driver_db
+      SPRING_DATASOURCE_USERNAME: taxi
+      SPRING_DATASOURCE_PASSWORD: taxi
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    ports:
+      - "8082:8082"
+    networks:
+      - taxi-net
+
+  customer-service:
+    build:
+      context: ../backend
+      dockerfile: customer-service/Dockerfile
+    container_name: taxi-customer-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      discovery-server:
+        condition: service_started
+    environment:
+      EUREKA_URI: http://discovery-server:8761/eureka
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/customer_db
+      SPRING_DATASOURCE_USERNAME: taxi
+      SPRING_DATASOURCE_PASSWORD: taxi
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    ports:
+      - "8083:8083"
+    networks:
+      - taxi-net
+
+  trip-service:
+    build:
+      context: ../backend
+      dockerfile: trip-service/Dockerfile
+    container_name: taxi-trip-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      discovery-server:
+        condition: service_started
+    environment:
+      EUREKA_URI: http://discovery-server:8761/eureka
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/trip_db
+      SPRING_DATASOURCE_USERNAME: taxi
+      SPRING_DATASOURCE_PASSWORD: taxi
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    ports:
+      - "8084:8084"
+    networks:
+      - taxi-net
+
+  realtime-service:
+    build:
+      context: ../backend
+      dockerfile: realtime-service/Dockerfile
+    container_name: taxi-realtime-service
+    depends_on:
+      kafka:
+        condition: service_started
+      discovery-server:
+        condition: service_started
+    environment:
+      EUREKA_URI: http://discovery-server:8761/eureka
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    ports:
+      - "8085:8085"
+    networks:
+      - taxi-net
+
+  admin-web:
+    build:
+      context: ../frontend
+      dockerfile: apps/admin-web/Dockerfile
+    container_name: taxi-admin-web
+    depends_on:
+      - api-gateway
+    ports:
+      - "4200:4200"
+    networks:
+      - taxi-net
+
+  dispatcher-web:
+    build:
+      context: ../frontend
+      dockerfile: apps/dispatcher-web/Dockerfile
+    container_name: taxi-dispatcher-web
+    depends_on:
+      - api-gateway
+      - realtime-service
+    ports:
+      - "4300:4300"
+    networks:
+      - taxi-net

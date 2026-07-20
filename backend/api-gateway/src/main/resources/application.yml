@@ -1,0 +1,45 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  config:
+    import: optional:configserver:${CONFIG_SERVER_URI:http://localhost:8888}
+  cloud:
+    gateway:
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/auth/**
+        - id: driver-service
+          uri: lb://driver-service
+          predicates:
+            - Path=/api/drivers/**
+        - id: customer-service
+          uri: lb://customer-service
+          predicates:
+            - Path=/api/customers/**
+        - id: trip-service
+          uri: lb://trip-service
+          predicates:
+            - Path=/api/trips/**
+        - id: realtime-service-ws
+          uri: lb:ws://realtime-service
+          predicates:
+            - Path=/ws/**
+        - id: realtime-service-sockjs
+          uri: lb://realtime-service
+          predicates:
+            - Path=/ws-sockjs/**
+
+jwt:
+  secret: ${JWT_SECRET:change-this-dev-only-secret-please-32-bytes-min}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka}
+  instance:
+    prefer-ip-address: true

@@ -1,0 +1,31 @@
+{
+  "name": "@org/mobile-customer",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "eas-build-post-install": "cd ../../ && node tools/scripts/eas-build-post-install.mjs . apps/mobile-customer"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "*",
+    "@expo/metro": "*",
+    "@testing-library/react-native": "*",
+    "expo": "*",
+    "expo-splash-screen": "*",
+    "expo-status-bar": "*",
+    "expo-system-ui": "*",
+    "jest-expo": "*",
+    "react": "*",
+    "react-native": "*",
+    "react-native-svg": "*",
+    "react-native-svg-transformer": "*",
+    "react-native-web": "*",
+    "@org/shared-types": "*",
+    "@react-navigation/native": "^6.1.17",
+    "@react-navigation/native-stack": "^6.9.26",
+    "react-native-screens": "*",
+    "react-native-safe-area-context": "*",
+    "@react-native-async-storage/async-storage": "*",
+    "axios": "^1.7.2",
+    "@stomp/stompjs": "^7.0.0"
+  }
+}

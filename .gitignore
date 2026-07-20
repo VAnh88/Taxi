@@ -1,0 +1,40 @@
+# Java / Maven
+target/
+*.class
+
+# Node / Angular / React Native / Nx
+node_modules/
+dist/
+.expo/
+.expo-shared/
+.nx/
+.angular/
+out-tsc/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Env & secrets (không bao giờ commit credential)
+.env
+*.env.local
+
+# File khảo sát nặng (APK hệ cũ) — không thuộc source code
+*.xapk
+*.apk
+
+# Tài liệu thiết kế/nghiệp vụ nội bộ — không push (giữ local)
+/thien-duc-survey-and-scope.md
+/business-analysis-and-db-design.md
+/business-rules-booking-membership-voucher-notification.md
+/db-design-phase2.md
+/db-design-complete.md
+/tech-architecture.md
+*.xlsx
+
+# Bộ nhớ/cấu hình phiên làm việc Claude
+.claude/
+
+# Office temp
+~$*

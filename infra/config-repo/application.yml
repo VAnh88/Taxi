@@ -1,0 +1,6 @@
+# Shared config cho tất cả service (Spring Cloud Config native mode)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
